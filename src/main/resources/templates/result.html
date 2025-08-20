@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STT 결과</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .status {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      color: white;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .status.completed { background-color: #28a745; }
+    .status.failed { background-color: #dc3545; }
+    .full-text {
+      background-color: #e9f7ff;
+      border-left: 4px solid #007bff;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+    .segments {
+      margin-top: 30px;
+    }
+    .segment {
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      transition: transform 0.2s;
+    }
+    .segment:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .segment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      color: #6c757d;
+    }
+    .segment-text {
+      font-size: 1.1em;
+      line-height: 1.6;
+      color: #343a40;
+    }
+    .confidence {
+      background-color: #007bff;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8em;
+    }
+    .speaker {
+      background-color: #6c757d;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8em;
+    }
+    .time-range {
+      font-weight: bold;
+      color: #495057;
+    }
+    .words-detail {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e9ecef;
+    }
+    .word-item {
+      display: inline-block;
+      background-color: #e7f3ff;
+      border: 1px solid #b8daff;
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin: 2px;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    .word-item:hover {
+      background-color: #cce7ff;
+    }
+    .raw-result {
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+    .raw-result pre {
+      margin: 0;
+      font-size: 0.85em;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .back-button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 20px;
+    }
+    .back-button:hover {
+      background-color: #0056b3;
+      color: white;
+      text-decoration: none;
+    }
+    .toggle-button {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
+    .toggle-button:hover {
+      background-color: #5a6268;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>STT 처리 결과</h1>
+    <div class="info">
+      <p><strong>처리 방식:</strong> <span th:text="${processType}">Unknown</span></p>
+      <p><strong>파일/URL:</strong> <span th:text="${fileName}">Unknown</span></p>
+      <p><strong>언어:</strong> <span th:text="${language}">Unknown</span></p>
+    </div>
+  </div>
+
+  <!-- 처리 상태 표시 -->
+  <div th:if="${result}">
+            <span th:class="'status ' + (${result.result} == 'COMPLETED' ? 'completed' : 'failed')"
+                  th:text="${result.result}">STATUS</span>
+    <p><strong>메시지:</strong> <span th:text="${result.message}">Message</span></p>
+    <p th:if="${result.progress}"><strong>진행률:</strong> <span th:text="${result.progress}">0</span>%</p>
+  </div>
+
+  <!-- 전체 텍스트 표시 -->
+  <div class="full-text" th:if="${result.text}">
+    <h3>🎯 인식된 전체 텍스트</h3>
+    <p class="segment-text" th:text="${result.text}">전체 텍스트가 여기에 표시됩니다.</p>
+    <p><strong>전체 신뢰도:</strong>
+      <span class="confidence" th:text="${#numbers.formatPercent(result.confidence, 1, 2)}">0%</span>
+    </p>
+  </div>
+
+  <!-- 세그먼트별 상세 정보 -->
+  <div class="segments" th:if="${result.segments}">
+    <h3>📝 세그먼트별 상세 정보</h3>
+    <div class="segment" th:each="segment, segStat : ${result.segments}">
+      <div class="segment-header">
+        <div>
+                        <span class="time-range"
+                              th:text="|${#numbers.formatDecimal(segment.start/1000.0, 1, 2)}s - ${#numbers.formatDecimal(segment.end/1000.0, 1, 2)}s|">
+                            0.0s - 0.0s
+                        </span>
+          <span class="speaker" th:if="${segment.speaker}"
+                th:text="|화자: ${segment.speaker.name}|">Speaker</span>
+        </div>
+        <div>
+                        <span class="confidence"
+                              th:text="${#numbers.formatPercent(segment.confidence, 1, 2)}">0%</span>
+          <button class="toggle-button"
+                  th:onclick="|toggleWords('words-${segStat.index}')|"
+                  th:if="${segment.words}">
+            단어 보기
+          </button>
+        </div>
+      </div>
+
+      <div class="segment-text" th:text="${segment.text}">
+        세그먼트 텍스트가 여기에 표시됩니다.
+      </div>
+
+      <!-- 단어별 상세 정보 (기본적으로 숨김) -->
+      <div class="words-detail hidden"
+           th:id="|words-${segStat.index}|"
+           th:if="${segment.words}">
+        <h5>🔤 단어별 타이밍 정보</h5>
+        <div th:each="word : ${segment.words}">
+                        <span class="word-item"
+                              th:title="|${#numbers.formatDecimal(word[0]/1000.0, 1, 2)}s - ${#numbers.formatDecimal(word[1]/1000.0, 1, 2)}s|"
+                              th:text="${word[2]}">
+                            단어
+                        </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 화자 정보 -->
+  <div th:if="${result.speakers}" style="margin-top: 30px;">
+    <h3>👥 화자 정보</h3>
+    <div th:each="speaker : ${result.speakers}" style="margin-bottom: 10px;">
+      <span class="speaker" th:text="|화자 ${speaker.name} (${speaker.label})|">Speaker Info</span>
+    </div>
+  </div>
+
+  <!-- Raw JSON 결과 (토글 가능) -->
+  <div class="raw-result">
+    <h3 style="cursor: pointer;" onclick="toggleRawResult()">
+      🔍 Raw JSON 결과 <small>(클릭하여 토글)</small>
+    </h3>
+    <pre id="rawResult" class="hidden" th:text="${rawResult}">Raw JSON 결과가 여기에 표시됩니다.</pre>
+  </div>
+
+  <a href="/" class="back-button">← 다시 시도하기</a>
+</div>
+
+<script>
+  function toggleWords(elementId) {
+    const element = document.getElementById(elementId);
+    if (element.classList.contains('hidden')) {
+      element.classList.remove('hidden');
+    } else {
+      element.classList.add('hidden');
+    }
+  }
+
+  function toggleRawResult() {
+    const element = document.getElementById('rawResult');
+    if (element.classList.contains('hidden')) {
+      element.classList.remove('hidden');
+    } else {
+      element.classList.add('hidden');
+    }
+  }
+</script>
+</body>
+</html>

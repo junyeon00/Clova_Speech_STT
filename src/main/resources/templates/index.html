@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clova Speech STT with Object Storage</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input[type="text"], input[type="url"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    button {
+      background-color: #00c73c;
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #00a332;
+    }
+    .test-btn {
+      background-color: #6c757d;
+      width: auto;
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .test-btn:hover {
+      background-color: #5a6268;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .info {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .tab button {
+      background-color: #e9ecef;
+      color: #495057;
+      border: 1px solid #dee2e6;
+      padding: 10px 20px;
+      cursor: pointer;
+      width: auto;
+      margin-right: 5px;
+    }
+    .tab button.active {
+      background-color: #00c73c;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .advanced-options {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .speaker-config {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .speaker-config input {
+      width: 100px;
+    }
+    .form-row {
+      display: flex;
+      gap: 15px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎙️ Clova Speech STT with Object Storage</h1>
+
+  <div th:if="${error}" class="error" th:text="${error}"></div>
+
+  <div class="info">
+    <p><strong>📦 Object Storage 사용:</strong> NCP Object Storage에 업로드된 파일을 직접 처리합니다</p>
+    <p><strong>🎯 데이터 키:</strong> Object Storage의 파일 경로/이름을 입력하세요 (예: audio/sample.mp3)</p>
+  </div>
+
+  <div class="tab">
+    <button type="button" class="active" onclick="showTab('object-storage')">Object Storage</button>
+    <button type="button" onclick="showTab('url')">외부 URL</button>
+  </div>
+
+  <form action="/process" method="post">
+    <div id="object-storage-tab" class="tab-content active">
+      <div class="form-group">
+        <label for="dataKey">🔑 Object Storage 데이터 키:</label>
+        <input type="text" id="dataKey" name="dataKey" placeholder="예: sample.mp3, meeting.mp4" required>
+        <small style="color: #666; font-size: 14px;">Object Storage에 업로드한 파일명을 입력하세요</small>
+      </div>
+    </div>
+
+    <div id="url-tab" class="tab-content">
+      <div class="form-group">
+        <label for="url">🌐 외부 음성 파일 URL:</label>
+        <input type="url" id="url" name="url" placeholder="https://example.com/audio.mp3">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="language">🗣️ 언어 설정:</label>
+      <select id="language" name="language">
+        <option value="ko-KR">한국어</option>
+        <option value="en-US">영어(미국)</option>
+        <option value="ja-JP">일본어</option>
+        <option value="zh-CN">중국어(간체)</option>
+        <option value="zh-TW">중국어(번체)</option>
+      </select>
+    </div>
+
+    <div class="advanced-options">
+      <h3>⚙️ 고급 설정</h3>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="wordAlignment" name="wordAlignment" checked>
+        <label for="wordAlignment">단어별 시간 정보 포함</label>
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="fullText" name="fullText" checked>
+        <label for="fullText">전체 텍스트 반환</label>
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="diarization" name="diarization" onchange="toggleSpeakerConfig()">
+        <label for="diarization">화자 분리 (Speaker Diarization)</label>
+      </div>
+
+      <div id="speakerConfig" class="speaker-config" style="display: none;">
+        <div class="form-group">
+          <label for="speakerMin">최소 화자 수:</label>
+          <input type="number" id="speakerMin" name="speakerMin" min="1" max="10" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label for="speakerMax">최대 화자 수:</label>
+          <input type="number" id="speakerMax" name="speakerMax" min="1" max="10" placeholder="10">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="forbiddens">🚫 금지 단어 (쉼표로 구분):</label>
+        <input type="text" id="forbiddens" name="forbiddens" placeholder="예: 욕설1,욕설2,부적절한단어">
+      </div>
+    </div>
+
+    <button type="submit">🎤 음성 인식 시작</button>
+  </form>
+
+  <div style="margin-top: 20px; text-align: center;">
+    <a href="/test" class="test-btn button">🧪 테스트 실행 (sample.mp3)</a>
+    <small style="display: block; margin-top: 10px; color: #666;">
+      Object Storage에 sample.mp3 파일이 있는 경우 테스트할 수 있습니다
+    </small>
+  </div>
+</div>
+
+<script>
+  function showTab(tabName) {
+    // 모든 탭 비활성화
+    document.querySelectorAll('.tab-content').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab button').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    // 선택된 탭 활성화
+    document.getElementById(tabName + '-tab').classList.add('active');
+    event.target.classList.add('active');
+
+    // 입력 필드 초기화
+    if (tabName === 'object-storage') {
+      document.getElementById('url').value = '';
+      document.getElementById('dataKey').required = true;
+    } else {
+      document.getElementById('dataKey').value = '';
+      document.getElementById('dataKey').required = false;
+    }
+  }
+
+  function toggleSpeakerConfig() {
+    const diarizationCheck = document.getElementById('diarization');
+    const speakerConfig = document.getElementById('speakerConfig');
+
+    if (diarizationCheck.checked) {
+      speakerConfig.style.display = 'flex';
+    } else {
+      speakerConfig.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>
